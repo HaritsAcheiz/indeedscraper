@@ -1,7 +1,3 @@
-# import httpx
-import asyncio
-
-import cloudscraper
 import httpx
 from selectolax.parser import HTMLParser
 from selenium.webdriver import Firefox
