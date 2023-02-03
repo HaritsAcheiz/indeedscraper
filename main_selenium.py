@@ -1,5 +1,6 @@
 from selenium import webdriver
 from fake_useragent import UserAgent
+from selenium.common import NoSuchElementException, TimeoutException
 from selenium.webdriver import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
@@ -54,27 +55,36 @@ def job_result_url(driver, url, term, location):
     wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated')))
     return driver.current_url.rsplit('&',1)[0]+'&start=0'
 
-# def get_company_url(driver,proxy):
-#     driver.get(url)
-#     driver.max
-#     driver.find_element(By.CSS_SELECTOR, 'div.otFlat.bottom.ot-wo-title.vertical-align-content>div>div.ot-sdk-container>div.ot-sdk-row>div#onetrust-button-group-parent.ot-sdk-three.ot-sdk-columns.has-reject-all-button>div#onetrust-button-group>button#onetrust-accept-btn-handler').click()
-#     clicking_objects = driver.find_elements(By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated>ul.jobsearch-ResultsList.css-0>li>div>div.slider_container.css-g7s71f.eu4oa1w0')
-#     company_urls = list()
-#
-#     for object in clicking_objects:
-#         # Scroll until element found
-#         js_code = "arguments[0].scrollIntoView();"
-#         element = object.find_element(By.CSS_SELECTOR, 'a.jcs-JobTitle.css-jspxzf.eu4oa1w0')
-#         driver.execute_script(js_code, element)
-#
-#         # Click job element
-#         object.find_element(By.CSS_SELECTOR, 'a.jcs-JobTitle.css-jspxzf.eu4oa1w0').click()
-#
-#         # Get company url
-#         wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.jobsearch-InlineCompanyRating.icl-u-xs-mt--xs.icl-u-xs-mb--md.css-11s8wkw.eu4oa1w0>div:nth-child(2)>div.css-czdse3.eu4oa1w0>a')))
-#         company_url = driver.find_element(By.CSS_SELECTOR, 'div.jobsearch-InlineCompanyRating.icl-u-xs-mt--xs.icl-u-xs-mb--md.css-11s8wkw.eu4oa1w0>div:nth-child(2)>div.css-czdse3.eu4oa1w0>a').get_attribute('href')
-#         company_urls.append(company_url)
-#     return company_urls
+def get_company_url(driver, url):
+    driver.get(url)
+    driver.maximize_window()
+    wait = WebDriverWait(driver, 10)
+
+    try:
+        # Accept all cookies
+        wait.until(ec.presence_of_element_located((By.CSS_SELECTOR,'div.otFlat.bottom.ot-wo-title.vertical-align-content>div>div.ot-sdk-container>div.ot-sdk-row>div#onetrust-button-group-parent.ot-sdk-three.ot-sdk-columns.has-reject-all-button>div#onetrust-button-group>button#onetrust-accept-btn-handler')))
+        driver.find_element(By.CSS_SELECTOR, 'div.otFlat.bottom.ot-wo-title.vertical-align-content>div>div.ot-sdk-container>div.ot-sdk-row>div#onetrust-button-group-parent.ot-sdk-three.ot-sdk-columns.has-reject-all-button>div#onetrust-button-group>button#onetrust-accept-btn-handler').click()
+        print('All Cookies accepted')
+    except (NoSuchElementException, TimeoutException):
+        print('No Cookies Banner')
+        pass
+
+    clicking_objects = driver.find_elements(By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated>ul.jobsearch-ResultsList.css-0>li>div>div.slider_container.css-g7s71f.eu4oa1w0')
+    company_urls = list()
+    for object in clicking_objects:
+        # Scroll until element found
+        js_code = "arguments[0].scrollIntoView();"
+        element = object.find_element(By.CSS_SELECTOR, 'a.jcs-JobTitle.css-jspxzf.eu4oa1w0')
+        driver.execute_script(js_code, element)
+
+        # Click job element
+        object.find_element(By.CSS_SELECTOR, 'a.jcs-JobTitle.css-jspxzf.eu4oa1w0').click()
+
+        # Get company url
+        wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.jobsearch-InlineCompanyRating.icl-u-xs-mt--xs.icl-u-xs-mb--md.css-11s8wkw.eu4oa1w0>div:nth-child(2)>div.css-czdse3.eu4oa1w0>a')))
+        company_url = driver.find_element(By.CSS_SELECTOR, 'div.jobsearch-InlineCompanyRating.icl-u-xs-mt--xs.icl-u-xs-mb--md.css-11s8wkw.eu4oa1w0>div:nth-child(2)>div.css-czdse3.eu4oa1w0>a').get_attribute('href')
+        company_urls.append(company_url)
+    return company_urls
 
 def main():
     url = 'https://de.indeed.com/'
@@ -84,7 +94,13 @@ def main():
     proxy = choice(proxies)
     driver = webdriver_setup(proxy)
     search_result_url = job_result_url(driver, url, term, location)
+
     print(search_result_url)
+
+    proxy = choice(proxies)
+    driver = webdriver_setup(proxy)
+    company_urls = get_company_url(driver, search_result_url)
+    print(company_urls)
 
 if __name__ == '__main__':
     main()
