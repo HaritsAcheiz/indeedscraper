@@ -40,10 +40,6 @@ def webdriver_setup(proxy = None):
     firefox_options.set_preference('network.proxy.ssl', ip)
     firefox_options.set_preference('network.proxy.ssl_port', int(port))
 
-    firefox_options.set_capability("acceptSslCerts", True)
-    firefox_options.set_capability("acceptInsecureCerts", True)
-    firefox_options.set_capability("ignore-certificate-errors", False)
-
     driver = webdriver.Firefox(options=firefox_options)
     return driver
 
@@ -56,8 +52,21 @@ def search_job(driver, url, term, location):
     input_term = parent.find_element(By.ID,'text-input-what')
     input_term.send_keys(term + Keys.TAB + location + Keys.RETURN)
     wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated')))
-    parent = driver.find_elements(By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated>ul.jobsearch-ResultsList.css-0>li>div>div.slider_container.css-g7s71f.eu4oa1w0')
-    []
+    driver.find_element(By.CSS_SELECTOR, 'div.otFlat.bottom.ot-wo-title.vertical-align-content>div>div.ot-sdk-container>div.ot-sdk-row>div#onetrust-button-group-parent.ot-sdk-three.ot-sdk-columns.has-reject-all-button>div#onetrust-button-group>button#onetrust-accept-btn-handler').click()
+    clicking_objects = driver.find_elements(By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated>ul.jobsearch-ResultsList.css-0>li>div>div.slider_container.css-g7s71f.eu4oa1w0')
+    company_urls = list()
+    for object in clicking_objects:
+        # Scroll until element found
+        js_code = "arguments[0].scrollIntoView();"
+        element = object.find_element(By.CSS_SELECTOR, 'a.jcs-JobTitle.css-jspxzf.eu4oa1w0')
+        driver.execute_script(js_code, element)
+
+        # Click job element
+        object.find_element(By.CSS_SELECTOR, 'a.jcs-JobTitle.css-jspxzf.eu4oa1w0').click()
+        wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.jobsearch-InlineCompanyRating.icl-u-xs-mt--xs.icl-u-xs-mb--md.css-11s8wkw.eu4oa1w0>div:nth-child(2)>div.css-czdse3.eu4oa1w0>a')))
+        company_url = driver.find_element(By.CSS_SELECTOR, 'div.jobsearch-InlineCompanyRating.icl-u-xs-mt--xs.icl-u-xs-mb--md.css-11s8wkw.eu4oa1w0>div:nth-child(2)>div.css-czdse3.eu4oa1w0>a').get_attribute('href')
+        company_urls.append(company_url)
+    return company_urls
 
 def main():
     url = 'https://de.indeed.com/'
@@ -66,8 +75,8 @@ def main():
 
     proxy = choice(proxies)
     driver = webdriver_setup(proxy)
-    search_job(driver, url, term, location)
-
+    company_urls = search_job(driver, url, term, location)
+    print(company_urls)
 
 if __name__ == '__main__':
     main()
