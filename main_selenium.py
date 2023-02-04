@@ -1,13 +1,17 @@
-from selenium import webdriver
 from fake_useragent import UserAgent
+from random import choice
+
+from selenium import webdriver
 from selenium.common import NoSuchElementException, TimeoutException
 from selenium.webdriver import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
-from random import choice
-
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.wait import WebDriverWait
+
+from selectolax import parser
+
+import httpx
 
 proxies = ['154.38.30.117:8800',
            '192.126.253.59:8800',
@@ -20,6 +24,8 @@ proxies = ['154.38.30.117:8800',
            '192.126.253.197:8800',
            '154.38.30.196:8800'
            ]
+
+scraped_proxies = ['35.154.32.37:3128', '51.79.50.31:9300', '115.96.208.124:8080', '151.80.95.161:8080', '51.159.115.233:3128']
 
 def webdriver_setup(proxy = None):
     ip, port = proxy.split(sep=':')
@@ -53,7 +59,9 @@ def job_result_url(driver, url, term, location):
     input_term = parent.find_element(By.ID,'text-input-what')
     input_term.send_keys(term + Keys.TAB + location + Keys.RETURN)
     wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated')))
-    return driver.current_url.rsplit('&',1)[0]+'&start=0'
+    result = driver.current_url.rsplit('&', 1)[0] + '&start=0'
+    driver.quit()
+    return result
 
 def get_company_url(driver, url):
     driver.get(url)
@@ -84,6 +92,7 @@ def get_company_url(driver, url):
         wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.jobsearch-InlineCompanyRating.icl-u-xs-mt--xs.icl-u-xs-mb--md.css-11s8wkw.eu4oa1w0>div:nth-child(2)>div.css-czdse3.eu4oa1w0>a')))
         company_url = driver.find_element(By.CSS_SELECTOR, 'div.jobsearch-InlineCompanyRating.icl-u-xs-mt--xs.icl-u-xs-mb--md.css-11s8wkw.eu4oa1w0>div:nth-child(2)>div.css-czdse3.eu4oa1w0>a').get_attribute('href')
         company_urls.append(company_url)
+    driver.quit()
     return company_urls
 
 def main():
@@ -101,6 +110,7 @@ def main():
     driver = webdriver_setup(proxy)
     company_urls = get_company_url(driver, search_result_url)
     print(company_urls)
+
 
 if __name__ == '__main__':
     main()
