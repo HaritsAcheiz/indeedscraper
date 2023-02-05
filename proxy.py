@@ -64,17 +64,18 @@ async def main(urls):
 
 if __name__ == '__main__':
     # asyncio.run(main(urls))
-    # scraped_proxies = get_proxy()
-    # proxies = choose_proxy(scraped_proxies)
-    # print(proxies)
+    scraped_proxies = get_proxy()
+    proxies = choose_proxy(scraped_proxies)
+    print(proxies)
 
-    scraped_proxies = ['35.154.32.37:3128', '51.79.50.31:9300', '115.96.208.124:8080', '151.80.95.161:8080',
-                       '51.159.115.233:3128']
+    # scraped_proxies = ['35.154.32.37:3128', '51.79.50.31:9300', '115.96.208.124:8080', '151.80.95.161:8080',
+    #                    '51.159.115.233:3128']
 
-    formated_proxy = {"http://": f"http://{scraped_proxies[0]}",
-                      "https://": f"http://{scraped_proxies[0]}"}
-    url = 'https://de.indeed.com/cmp/Hotel-Mssngr?campaignid=mobvjcmp&from=mobviewjob&tk=1gof8d8ekje0t800&fromjk=b047ef9a275f692a'
-    with httpx.Client(proxies=formated_proxy) as client:
-        response = client.get(url)
-    print(response)
-    print(response.text)
+    # formated_proxy = {"http://": f"http://{scraped_proxies[3]}",
+    #                   "https://": f"http://{scraped_proxies[3]}"}
+    # url = 'https://de.indeed.com/cmp/Hotel-Mssngr?campaignid=mobvjcmp&from=mobviewjob&tk=1gof8d8ekje0t800&fromjk=b047ef9a275f692a'
+    # # url2 = 'https://www.google.com'
+    # with httpx.Client(proxies=formated_proxy) as client:
+    #     response = client.get(url)
+    # print(response)
+    # print(response.text)

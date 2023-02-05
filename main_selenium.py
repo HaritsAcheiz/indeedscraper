@@ -25,7 +25,7 @@ proxies = ['154.38.30.117:8800',
            '154.38.30.196:8800'
            ]
 
-scraped_proxies = ['35.154.32.37:3128', '51.79.50.31:9300', '115.96.208.124:8080', '151.80.95.161:8080', '51.159.115.233:3128']
+scraped_proxies = ['110.34.3.229:3128', '173.249.198.244:8080', '3.7.132.202:3128', '154.236.189.19:8080', '65.1.75.38:3128']
 
 def webdriver_setup(proxy = None):
     ip, port = proxy.split(sep=':')
@@ -33,7 +33,7 @@ def webdriver_setup(proxy = None):
     useragent = ua.firefox
     firefox_options = Options()
 
-    # firefox_options.headless = True
+    firefox_options.headless = True
     firefox_options.add_argument('--no-sandbox')
 
     firefox_options.set_preference("general.useragent.override", useragent)
@@ -95,6 +95,13 @@ def get_company_url(driver, url):
     driver.quit()
     return company_urls
 
+def get_data(driver, url):
+    driver.get(url)
+    wait = WebDriverWait(driver, 10)
+    # cookies = driver.
+    parent = wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, "div.css-1l41mw3.e37uo190")))
+    wait.until(ec.presence_of_element_located((By.XPATH, "//div[text() = 'Link']")))
+
 def main():
     url = 'https://de.indeed.com/'
     term = 'junior sales'
@@ -110,6 +117,10 @@ def main():
     driver = webdriver_setup(proxy)
     company_urls = get_company_url(driver, search_result_url)
     print(company_urls)
+
+    proxy = choice(scraped_proxies)
+    driver = webdriver_setup(proxy)
+
 
 
 if __name__ == '__main__':
