@@ -13,19 +13,27 @@ from selectolax import parser
 
 import httpx
 
-proxies = ['154.38.30.117:8800',
-           '192.126.253.59:8800',
-           '154.12.198.69:8800',
-           '192.126.253.48:8800',
-           # '192.126.250.223:8800',
-           '192.126.250.22:8800',
+from dataclasses import dataclass
+
+proxies = ['154.38.30.196:8800',
+           '192.126.250.223:8800',
+           '154.38.30.117:8800',
            '154.12.198.179:8800',
+           '154.12.198.69:8800',
+           '192.126.250.22:8800',
+           '192.126.253.48:8800',
            '192.126.253.134:8800',
-           '192.126.253.197:8800',
-           '154.38.30.196:8800'
+           '192.126.253.59:8800',
+           '192.126.253.197:8800'
            ]
 
 scraped_proxies = ['110.34.3.229:3128', '173.249.198.244:8080', '3.7.132.202:3128', '154.236.189.19:8080', '65.1.75.38:3128']
+
+@dataclass
+class Company:
+    name:str
+    website:str
+    linkedin:str
 
 def webdriver_setup(proxy = None):
     ip, port = proxy.split(sep=':')
@@ -33,7 +41,7 @@ def webdriver_setup(proxy = None):
     useragent = ua.firefox
     firefox_options = Options()
 
-    firefox_options.headless = True
+    # firefox_options.headless = True
     firefox_options.add_argument('--no-sandbox')
 
     firefox_options.set_preference("general.useragent.override", useragent)
@@ -98,28 +106,49 @@ def get_company_url(driver, url):
 def get_data(driver, url):
     driver.get(url)
     wait = WebDriverWait(driver, 10)
-    # cookies = driver.
-    parent = wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, "div.css-1l41mw3.e37uo190")))
-    wait.until(ec.presence_of_element_located((By.XPATH, "//div[text() = 'Link']")))
+
+    # Get Company name
+    wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'ul.css-1jgykzt.e37uo190')))
+    Company.name = driver.find_element(By.CSS_SELECTOR, 'div[itemprop="name"]').text
+
+    # Get Company URL
+    parent = driver.find_element(By.CSS_SELECTOR, 'ul.css-1jgykzt.e37uo190')
+    try:
+        Company.website = parent.find_element(By.PARTIAL_LINK_TEXT, 'ebs').get_attribute('href')
+    except NoSuchElementException:
+        Company.website = None
+
+    # Get Company linkedin
+    try:
+        Company.linkedin = parent.find_element(By.PARTIAL_LINK_TEXT, 'inked').get_attribute('href')
+    except NoSuchElementException:
+        Company.linkedin = None
+    driver.quit()
+    return Company
 
 def main():
-    url = 'https://de.indeed.com/'
-    term = 'junior sales'
-    location = 'Berlin'
+    # url = 'https://de.indeed.com/'
+    # term = 'junior sales'
+    # location = 'Berlin'
+    #
+    # proxy = choice(proxies)
+    # driver = webdriver_setup(proxy)
+    # search_result_url = job_result_url(driver, url, term, location)
+    #
+    # print(search_result_url)
+    #
+    # proxy = choice(proxies)
+    # driver = webdriver_setup(proxy)
+    # company_urls = get_company_url(driver, search_result_url)
+    # print(company_urls)
 
+    # for i in company_urls:
     proxy = choice(proxies)
     driver = webdriver_setup(proxy)
-    search_result_url = job_result_url(driver, url, term, location)
-
-    print(search_result_url)
-
-    proxy = choice(proxies)
-    driver = webdriver_setup(proxy)
-    company_urls = get_company_url(driver, search_result_url)
-    print(company_urls)
-
-    proxy = choice(scraped_proxies)
-    driver = webdriver_setup(proxy)
+    result = get_data(driver, 'https://de.indeed.com/cmp/Berry-Global,-Inc?campaignid=mobvjcmp&from=mobviewjob&tk=1gohei2qn2gvc002&fromjk=2f307529e5e74403')
+    print(result.name)
+    print(result.website)
+    print(result.linkedin)
 
 
 
