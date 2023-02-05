@@ -1,3 +1,5 @@
+import time
+
 from fake_useragent import UserAgent
 from random import choice
 
@@ -36,12 +38,14 @@ class Company:
     linkedin:str
 
 def webdriver_setup(proxy = None):
+    print('Webdriver setup...')
     ip, port = proxy.split(sep=':')
     ua = UserAgent()
     useragent = ua.firefox
     firefox_options = Options()
 
     # firefox_options.headless = True
+    firefox_options.add_argument('-headless')
     firefox_options.add_argument('--no-sandbox')
 
     firefox_options.set_preference("general.useragent.override", useragent)
@@ -56,9 +60,11 @@ def webdriver_setup(proxy = None):
     firefox_options.set_preference('network.proxy.ssl_port', int(port))
 
     driver = webdriver.Firefox(options=firefox_options)
+    print('Completed')
     return driver
 
 def job_result_url(driver, url, term, location):
+    print('Get job list...')
     driver.get(url)
     driver.maximize_window()
     wait = WebDriverWait(driver, 10)
@@ -69,9 +75,11 @@ def job_result_url(driver, url, term, location):
     wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated')))
     result = driver.current_url.rsplit('&', 1)[0] + '&start=0'
     driver.quit()
+    print('Completed')
     return result
 
 def get_company_url(driver, url):
+    print('Get company url...')
     driver.get(url)
     driver.maximize_window()
     wait = WebDriverWait(driver, 10)
@@ -101,9 +109,11 @@ def get_company_url(driver, url):
         company_url = driver.find_element(By.CSS_SELECTOR, 'div.jobsearch-InlineCompanyRating.icl-u-xs-mt--xs.icl-u-xs-mb--md.css-11s8wkw.eu4oa1w0>div:nth-child(2)>div.css-czdse3.eu4oa1w0>a').get_attribute('href')
         company_urls.append(company_url)
     driver.quit()
+    print('Completed')
     return company_urls
 
 def get_data(driver, url):
+    print('Get data...')
     driver.get(url)
     wait = WebDriverWait(driver, 10)
 
@@ -124,33 +134,34 @@ def get_data(driver, url):
     except NoSuchElementException:
         Company.linkedin = None
     driver.quit()
+    print('Completed')
     return Company
 
 def main():
-    # url = 'https://de.indeed.com/'
-    # term = 'junior sales'
-    # location = 'Berlin'
-    #
-    # proxy = choice(proxies)
-    # driver = webdriver_setup(proxy)
-    # search_result_url = job_result_url(driver, url, term, location)
-    #
-    # print(search_result_url)
-    #
-    # proxy = choice(proxies)
-    # driver = webdriver_setup(proxy)
-    # company_urls = get_company_url(driver, search_result_url)
-    # print(company_urls)
+    url = 'https://de.indeed.com/'
+    term = 'junior sales'
+    location = 'Berlin'
 
-    # for i in company_urls:
     proxy = choice(proxies)
     driver = webdriver_setup(proxy)
-    result = get_data(driver, 'https://de.indeed.com/cmp/Berry-Global,-Inc?campaignid=mobvjcmp&from=mobviewjob&tk=1gohei2qn2gvc002&fromjk=2f307529e5e74403')
-    print(result.name)
-    print(result.website)
-    print(result.linkedin)
+    search_result_url = job_result_url(driver, url, term, location)
 
+    print(search_result_url)
 
+    proxy = choice(proxies)
+    driver = webdriver_setup(proxy)
+    company_urls = get_company_url(driver, search_result_url)
+    print(company_urls)
+
+    for url in company_urls:
+        proxy = choice(proxies)
+        driver = webdriver_setup(proxy)
+        result = get_data(driver, url)
+        print(f'Company name: {result.name}')
+        print(f'Company website: {result.website}')
+        print(f'Company linkedin: {result.linkedin}')
 
 if __name__ == '__main__':
+    start = time.perf_counter()
     main()
+    print(f'Processing Time for 15 company: {time.perf_counter() - start} second(s)')
