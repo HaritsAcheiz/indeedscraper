@@ -125,12 +125,12 @@ def get_data(driver, url, proxy):
     wait = WebDriverWait(driver, 15)
 
     # Get Company name
-    wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'ul.css-1jgykzt.e37uo190')))
+    wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div[itemprop="name"]')))
     Company.name = driver.find_element(By.CSS_SELECTOR, 'div[itemprop="name"]').text
 
     # Get Company URL
-    parent = driver.find_element(By.CSS_SELECTOR, 'ul.css-1jgykzt.e37uo190')
     try:
+        parent = driver.find_element(By.CSS_SELECTOR, 'ul.css-1jgykzt.e37uo190')
         Company.website = parent.find_element(By.PARTIAL_LINK_TEXT, 'ebs').get_attribute('href')
     except NoSuchElementException:
         Company.website = None
@@ -140,6 +140,7 @@ def get_data(driver, url, proxy):
         Company.linkedin = parent.find_element(By.PARTIAL_LINK_TEXT, 'inked').get_attribute('href')
     except NoSuchElementException:
         Company.linkedin = get_linkedin(Company.name, proxy)
+
     driver.quit()
     return Company
 
