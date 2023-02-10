@@ -1,3 +1,4 @@
+import asyncio
 import time
 from fake_useragent import UserAgent
 from random import choice
@@ -125,7 +126,7 @@ def get_data(driver, url, proxy):
     wait = WebDriverWait(driver, 15)
 
     # Get Company name
-    wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div[itemprop="name"]')))
+    wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'body.turnstileInfo')))
     Company.name = driver.find_element(By.CSS_SELECTOR, 'div[itemprop="name"]').text
 
     # Get Company URL
@@ -137,6 +138,7 @@ def get_data(driver, url, proxy):
 
     # Get Company linkedin
     try:
+        parent = driver.find_element(By.CSS_SELECTOR, 'ul.css-1jgykzt.e37uo190')
         Company.linkedin = parent.find_element(By.PARTIAL_LINK_TEXT, 'inked').get_attribute('href')
     except NoSuchElementException:
         Company.linkedin = get_linkedin(Company.name, proxy)
@@ -160,7 +162,6 @@ def main():
     company_urls = get_company_url(driver, search_result_url)
     print(company_urls)
 
-    # company_urls = ['https://de.indeed.com/cmp/Hotel-Mssngr?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5ab3ki9a800&fromjk=b047ef9a275f692a', 'https://de.indeed.com/cmp/Nh-8adc4d2a?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5bd62cfo002&fromjk=cc7dd09f67a7720d', 'https://de.indeed.com/cmp/Make-IT-Fix-Gmbh?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5cg5kibj803&fromjk=d7da040a0c4e08ad', 'https://de.indeed.com/cmp/Instinct3?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5dhvj3sp800&fromjk=dc8355820312c198', 'https://de.indeed.com/cmp/Targomo?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5eksk7gm802&fromjk=f7ff39626cd0f56f', 'https://de.indeed.com/cmp/Tts-Gmbh?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5fmvj3sp800&fromjk=c662129170711dba', 'https://de.indeed.com/cmp/Trakken-Gmbh?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5gogi3rn800&fromjk=3c9e429cd64ad558', 'https://de.indeed.com/cmp/Homburg-&-Partner?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5hrbk2lj800&fromjk=fd87426e320e2a3b', 'https://de.indeed.com/cmp/Highcoordination-Gmbh-1?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5it5keee800&fromjk=e4374dd769afabe7', 'https://de.indeed.com/cmp/Sonnen?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5k0lk7q0800&fromjk=e846fde655293c2e', 'https://de.indeed.com/cmp/Kreuzwerker-Gmbh?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5l7vkibj802&fromjk=e6b45259b1d839d6', 'https://de.indeed.com/cmp/A.-Lange-&-S%C3%B6hne?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5midk7q0802&fromjk=41a8cddcc5a80de1', 'https://de.indeed.com/cmp/Precise-Hotels-&-Resorts-Gmbh?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5nnhi3q6802&fromjk=0cb3375933f69c8b', 'https://de.indeed.com/cmp/Orbitvu?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5oqvk7jn802&fromjk=d48d9cb347c5aea9', 'https://de.indeed.com/cmp/Likeminded-Gmbh?campaignid=mobvjcmp&from=mobviewjob&tk=1gomb5psljqtv802&fromjk=2861be7ef9dd894a']
     for url in company_urls:
         proxy = choice(proxies)
         print(proxy)
@@ -170,6 +171,49 @@ def main():
         print(f'Company website: {result.website}')
         print(f'Company linkedin: {result.linkedin}')
         print('====================================================================')
+
+def parser(html):
+    print('Parse HTML...')
+    tree = HTMLParser(html)
+
+    # Get Company name
+    Company.name = tree.css_first('div[itemprop="name"]').text
+
+    # Get Company URL
+    try:
+        parent = tree.css_first('ul.css-1jgykzt.e37uo190')
+        Company.website = parent.css_first("a[text()*='ebs']").attrs['href']
+    except NoSuchElementException:
+        Company.website = None
+
+    # Get Company linkedin
+    try:
+        parent = tree.css_first('ul.css-1jgykzt.e37uo190')
+        Company.linkedin = parent.parent.css_first("a[text()*='inked']").attrs['href']
+    except NoSuchElementException:
+        Company.linkedin = get_linkedin(Company.name, proxy)
+
+    return Company
+
+async def fetch(url):
+    async with httpx.AsyncClient(timeout=None) as client:
+        return await client.get(url)
+
+async def mainAsyncio(urls):
+    proxy = choice(proxies)
+    driver = webdriver_setup(proxy)
+    search_result_url = job_result_url(driver, url, term, location)
+
+    print(search_result_url)
+
+    proxy = choice(proxies)
+    driver = webdriver_setup(proxy)
+    company_urls = get_company_url(driver, search_result_url)
+    print(company_urls)
+
+    responses = await asyncio.gather(*map(fetch, company_urls))
+    htmls = [response.text for response in responses]
+    return htmls
 
 if __name__ == '__main__':
     start = time.perf_counter()
