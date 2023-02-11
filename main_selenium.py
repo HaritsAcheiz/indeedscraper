@@ -207,7 +207,7 @@ def main():
     #     print(f'Company linkedin: {result.linkedin}')
     #     print('====================================================================')
 
-def parser(html):
+def parser(html, proxy):
     print('Parse HTML...')
     tree = HTMLParser(html)
 
@@ -217,14 +217,16 @@ def parser(html):
     # Get Company URL
     try:
         parent = tree.css_first('ul.css-1jgykzt.e37uo190')
-        Company.website = parent.css_first("a[text()*='ebs']").attrs['href']
+        # Company.website = parent.css_first("a[text()*='ebs']").attrs['href']
+        Company.website = parent.css_first("a:contains('^ebs$')").attrs['href']
     except NoSuchElementException:
         Company.website = None
 
     # Get Company linkedin
     try:
         parent = tree.css_first('ul.css-1jgykzt.e37uo190')
-        Company.linkedin = parent.parent.css_first("a[text()*='inked']").attrs['href']
+        # Company.linkedin = parent.css_first("a[text()*='inked']").attrs['href']
+        Company.linkedin = parent.css_first("a:contains('^inked$')").attrs['href']
     except NoSuchElementException:
         Company.linkedin = get_linkedin(Company.name, proxy)
 
@@ -249,9 +251,9 @@ def fetch(url, ua, cookies_list, proxies):
         "User-Agent": ua
     }
 
-    with httpx.Client(headers=header, cookies=cookies, proxies=formated_proxy) as client:
+    with httpx.Client(headers=header, cookies=cookies, proxies=formated_proxy, follow_redirects=True) as client:
         response = client.get(url)
-    print(response.text)
+    return response.text
 
 # async def mainAsyncio(company_urls):
 def mainAsyncio(company_urls, proxies):
@@ -262,15 +264,25 @@ def mainAsyncio(company_urls, proxies):
     search_result_url, cookies, ua = job_result_url(proxies, url, term, location)
     print(search_result_url, cookies, ua)
 
-    result = fetch(company_urls[0], ua=ua, cookies_list=cookies, proxies=proxies[5])
-    print(result)
-
+    html = fetch(company_urls[0], ua=ua, cookies_list=cookies, proxies=proxies)
+    result = parser(html, proxies[0])
 
     # responses = await asyncio.gather(*map(fetch, company_urls))
     # htmls = [response.text for response in responses]
     # return htmls
 
 if __name__ == '__main__':
+    proxies = [  # '154.12.198.179:8800',
+        '192.126.253.48:8800',
+        '192.126.250.22:8800',
+        # '154.38.30.117:8800',
+        '192.126.253.197:8800',
+        '192.126.253.59:8800',
+        # '154.38.30.196:8800',
+        '192.126.253.134:8800',
+        # '154.12.198.69:8800',
+        '192.126.250.223:8800'
+    ]
     start = time.perf_counter()
     company_urls = [
         'https://de.indeed.com/cmp/Hotel-Mssngr?campaignid=mobvjcmp&from=mobviewjob&tk=1gou6jnhgjjiv802&fromjk=2626f305ad399745',
