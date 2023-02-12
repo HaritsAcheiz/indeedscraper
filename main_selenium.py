@@ -448,7 +448,24 @@ def get_linkedin(search_term, proxy):
     }
 
     url = f"https://html.duckduckgo.com/html/?q={re.sub('[^A-Za-z0-9]+', '+', search_term)}+linkedin"
-    print(url)
+    with requests.Session() as session:
+        response = session.get(url, proxies=formated_proxy, headers=header)
+    tree = HTMLParser(response.text)
+    print(tree)
+    result = tree.css_first("div.serp__results > div#links.results > div.result.results_links.results_links_deep.web-result > div.links_main.links_deep.result__body > div.result__extras > div.result__extras__url > a.result__url").text().strip()
+    return result
+
+def get_website(search_term, proxy):
+    print("Searching for company website...")
+    formated_proxy = {
+        "http://": f"http://{proxy}",
+        "https://": f"http://{proxy}",
+    }
+    header = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:109.0) Gecko/20100101 Firefox/109.0"
+    }
+
+    url = f"https://html.duckduckgo.com/html/?q={re.sub('[^A-Za-z0-9]+', '+', search_term)}"
     with requests.Session() as session:
         response = session.get(url, proxies=formated_proxy, headers=header)
     tree = HTMLParser(response.text)
@@ -515,18 +532,21 @@ def company_parser(html, proxies):
                     website_link = (i.css_first('a').attributes['href'])
                     break
                 else:
+                    print('Not Found (3)')
                     website_link = None
                     continue
             except:
+                print('Not Found (2)')
                 website_link = None
                 continue
         if website_link == None:
-            # proxy = choice(proxies)
-            # linkedin_link = get_linkedin(company_name, proxy)
-            pass
+            proxy = choice(proxies)
+            website_link = get_website(company_name, proxy)
 
     except NoSuchElementException:
-        website_link = None
+        print('Not Found (1)')
+        proxy = choice(proxies)
+        linkedin_link = get_linkedin(company_name, proxy)
 
     # Get Company linkedin
     try:
