@@ -1,6 +1,6 @@
-import asyncio
 import csv
 import time
+from os import path
 
 import requests
 from fake_useragent import UserAgent
@@ -342,13 +342,18 @@ proxies = [
 
 @dataclass
 class Company:
-    name:str
-    website:str
-    linkedin:str
+    name: str
+    website: str
+    linkedin: str
 
-def to_csv(data):
-    with open('result.csv', 'a+') as f:
-        writer = csv.DictWriter(f, fieldnames=['name', 'website', 'linkedin'])
+def to_csv(data, filename):
+    file_exists = path.isfile(filename)
+
+    with open(filename, 'a') as f:
+        headers = ['Company Name', 'Company Website', 'Company Linkedin']
+        writer = csv.DictWriter(f, delimiter=',', lineterminator='\n', fieldnames=headers)
+        if not file_exists:
+            writer.writeheader()
         writer.writerow(data)
 
 def webdriver_setup(proxy = None):
@@ -379,6 +384,7 @@ def job_result_url(proxies, url, term, location):
     proxy = choice(proxies)
     driver = webdriver_setup(proxy)
     driver.get(url)
+    title = driver.find_element(By.TAG_NAME, 'title').text.strip()
     cookies = driver.get_cookies()
     ua = driver.execute_script("return navigator.userAgent")
     driver.maximize_window()
@@ -390,7 +396,7 @@ def job_result_url(proxies, url, term, location):
     wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated')))
     result = driver.current_url.rsplit('&', 1)[0] + '&start=0'
     driver.quit()
-    return result, cookies, ua
+    return result, cookies, ua, title
 
 def get_company_url(url, proxies):
     print('Get company url...')
@@ -435,6 +441,7 @@ def get_company_url(url, proxies):
             except TimeoutException:
                 pass
         driver.quit()
+        print(f'{len(company_urls)} company(s) are collected')
     return company_urls
 
 def get_linkedin(search_term, proxy):
@@ -501,10 +508,10 @@ def get_data(driver, url, proxy):
 
 def main():
     url = 'https://de.indeed.com/'
-    term = 'junior sales'
+    term = 'Account Executive'
     location = 'Berlin'
 
-    search_result_url, cookies, ua = job_result_url(proxies, url, term, location)
+    search_result_url, cookies, ua, title = job_result_url(proxies, url, term, location)
 
     print(search_result_url, cookies, ua)
 
@@ -513,15 +520,22 @@ def main():
     for url in company_urls:
         html = fetch(url, ua=ua, cookies_list=cookies, proxies=proxies)
         result = company_parser(html, proxies)
-        to_csv(result)
+        to_csv(result, f'{title}.csv')
 
 def company_parser(html, proxies):
     print('Parse HTML...')
     proxy = choice(proxies)
     tree = HTMLParser(html)
 
+    company_name = None
+    website_link = None
+    linkedin_link = None
+
     # Get Company name
-    company_name = tree.css_first('div[itemprop="name"]').text()
+    try:
+        company_name = tree.css_first('div[itemprop="name"]').text()
+    except:
+        company_name = None
 
     # Get Company URL
     try:
