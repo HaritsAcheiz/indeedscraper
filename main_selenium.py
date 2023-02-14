@@ -1,5 +1,7 @@
 import csv
 import time
+from concurrent.futures.thread import ThreadPoolExecutor
+from functools import partial
 from os import path
 
 import requests
@@ -350,7 +352,7 @@ def to_csv(data, filename):
     file_exists = path.isfile(filename)
 
     with open(filename, 'a') as f:
-        headers = ['Company Name', 'Company Website', 'Company Linkedin']
+        headers = ['name', 'website', 'linkedin']
         writer = csv.DictWriter(f, delimiter=',', lineterminator='\n', fieldnames=headers)
         if not file_exists:
             writer.writeheader()
@@ -364,6 +366,7 @@ def webdriver_setup(proxy = None):
 
     firefox_options.add_argument('-headless')
     firefox_options.add_argument('--no-sandbox')
+    firefox_options.page_load_strategy = "eager"
 
     firefox_options.set_preference("general.useragent.override", useragent)
     firefox_options.set_preference('network.proxy.type', 1)
@@ -379,24 +382,26 @@ def webdriver_setup(proxy = None):
     driver = webdriver.Firefox(options=firefox_options)
     return driver
 
-def job_result_url(proxies, url, term, location):
+def job_result_url(proxies, url, term):
     print('Get job list...')
     proxy = choice(proxies)
     driver = webdriver_setup(proxy)
     driver.get(url)
-    title = driver.find_element(By.TAG_NAME, 'title').text.strip()
     cookies = driver.get_cookies()
     ua = driver.execute_script("return navigator.userAgent")
     driver.maximize_window()
-    wait = WebDriverWait(driver, 15)
+    driver.set_page_load_timeout(30)
+    wait = WebDriverWait(driver, 30)
     wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.jobsearch-Yosegi')))
     parent = driver.find_element(By.CSS_SELECTOR, 'div.jobsearch-Yosegi')
     input_term = parent.find_element(By.ID,'text-input-what')
-    input_term.send_keys(term + Keys.TAB + location + Keys.RETURN)
-    wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated')))
-    result = driver.current_url.rsplit('&', 1)[0] + '&start=0'
+    # input_term.send_keys(term + Keys.TAB + location + Keys.RETURN)
+    input_term.send_keys(term + Keys.RETURN)
+    wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.jobsearch-LeftPane')))
+    result = driver.current_url.rsplit('&', 1)[0] + '&sort=date&start=0'
+    print(result)
     driver.quit()
-    return result, cookies, ua, title
+    return result, cookies, ua
 
 def get_company_url(url, proxies):
     print('Get company url...')
@@ -409,7 +414,8 @@ def get_company_url(url, proxies):
         driver = webdriver_setup(proxy)
         driver.get(next_url)
         driver.maximize_window()
-        wait = WebDriverWait(driver, 15)
+        driver.set_page_load_timeout(90)
+        wait = WebDriverWait(driver, 90)
 
         try:
             # Accept all cookies
@@ -440,6 +446,7 @@ def get_company_url(url, proxies):
                 company_urls.append(company_url)
             except TimeoutException:
                 pass
+
         driver.quit()
         print(f'{len(company_urls)} company(s) are collected')
     return company_urls
@@ -454,12 +461,15 @@ def get_linkedin(search_term, proxy):
         "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:109.0) Gecko/20100101 Firefox/109.0"
     }
 
-    url = f"https://html.duckduckgo.com/html/?q={re.sub('[^A-Za-z0-9]+', '+', search_term)}+linkedin"
-    with requests.Session() as session:
-        response = session.get(url, proxies=formated_proxy, headers=header)
-    tree = HTMLParser(response.text)
-    print(tree)
-    result = tree.css_first("div.serp__results > div#links.results > div.result.results_links.results_links_deep.web-result > div.links_main.links_deep.result__body > div.result__extras > div.result__extras__url > a.result__url").text().strip()
+    if search_term != None:
+        url = f"https://html.duckduckgo.com/html/?q={re.sub('[^A-Za-z0-9]+', '+', search_term)}+linkedin"
+        with requests.Session() as session:
+            response = session.get(url, proxies=formated_proxy, headers=header)
+        tree = HTMLParser(response.text)
+        print(tree)
+        result = tree.css_first("div.serp__results > div#links.results > div.result.results_links.results_links_deep.web-result > div.links_main.links_deep.result__body > div.result__extras > div.result__extras__url > a.result__url").text().strip()
+    else:
+        result = None
     return result
 
 def get_website(search_term, proxy):
@@ -471,56 +481,41 @@ def get_website(search_term, proxy):
     header = {
         "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:109.0) Gecko/20100101 Firefox/109.0"
     }
-
-    url = f"https://html.duckduckgo.com/html/?q={re.sub('[^A-Za-z0-9]+', '+', search_term)}"
-    with requests.Session() as session:
-        response = session.get(url, proxies=formated_proxy, headers=header)
-    tree = HTMLParser(response.text)
-    print(tree)
-    result = tree.css_first("div.serp__results > div#links.results > div.result.results_links.results_links_deep.web-result > div.links_main.links_deep.result__body > div.result__extras > div.result__extras__url > a.result__url").text().strip()
+    if search_term != None:
+        url = f"https://html.duckduckgo.com/html/?q={re.sub('[^A-Za-z0-9]+', '+', search_term)}"
+        with requests.Session() as session:
+            response = session.get(url, proxies=formated_proxy, headers=header)
+        tree = HTMLParser(response.text)
+        result = tree.css_first("div.serp__results > div#links.results > div.result.results_links.results_links_deep.web-result > div.links_main.links_deep.result__body > div.result__extras > div.result__extras__url > a.result__url").text().strip()
+    else:
+        result = None
     return result
 
-def get_data(driver, url, proxy):
+def get_data(url, ua, cookies, proxies):
     print('Get data...')
-    driver.get(url)
-    wait = WebDriverWait(driver, 15)
-
-    # Get Company name
-    wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'body.turnstileInfo')))
-    Company.name = driver.find_element(By.CSS_SELECTOR, 'div[itemprop="name"]').text
-
-    # Get Company URL
-    try:
-        parent = driver.find_element(By.CSS_SELECTOR, 'ul.css-1jgykzt.e37uo190')
-        Company.website = parent.find_element(By.PARTIAL_LINK_TEXT, 'ebs').get_attribute('href')
-    except NoSuchElementException:
-        Company.website = None
-
-    # Get Company linkedin
-    try:
-        parent = driver.find_element(By.CSS_SELECTOR, 'ul.css-1jgykzt.e37uo190')
-        Company.linkedin = parent.find_element(By.PARTIAL_LINK_TEXT, 'inked').get_attribute('href')
-    except NoSuchElementException:
-        Company.linkedin = get_linkedin(Company.name, proxy)
-
-    driver.quit()
-    return Company
+    html = fetch(url, ua=ua, cookies_list=cookies, proxies=proxies)
+    result = company_parser(html, proxies)
+    to_csv(result, 'junior sales.csv')
 
 def main():
     url = 'https://de.indeed.com/'
-    term = 'Account Executive'
-    location = 'Berlin'
+    term = 'junior sales'
+    # location = 'Berlin'
 
-    search_result_url, cookies, ua, title = job_result_url(proxies, url, term, location)
-
-    print(search_result_url, cookies, ua)
+    search_result_url, cookies, ua = job_result_url(proxies, url, term)
 
     company_urls = get_company_url(search_result_url, proxies=proxies)
 
-    for url in company_urls:
-        html = fetch(url, ua=ua, cookies_list=cookies, proxies=proxies)
-        result = company_parser(html, proxies)
-        to_csv(result, f'{title}.csv')
+    print(company_urls)
+
+    with ThreadPoolExecutor() as executor:
+        worker = partial(get_data, ua=ua, cookies_list=cookies, proxies=proxies)
+        executor.map(worker, company_urls)
+
+    # for url in company_urls:
+    #     html = fetch(url, ua=ua, cookies_list=cookies, proxies=proxies)
+    #     result = company_parser(html, proxies)
+    #     to_csv(result, f'{term}.csv')
 
 def company_parser(html, proxies):
     print('Parse HTML...')
@@ -560,7 +555,7 @@ def company_parser(html, proxies):
     except NoSuchElementException:
         print('Not Found (1)')
         proxy = choice(proxies)
-        linkedin_link = get_linkedin(company_name, proxy)
+        linkedin_link = get_website(company_name, proxy)
 
     # Get Company linkedin
     try:
@@ -609,28 +604,8 @@ def fetch(url, ua, cookies_list, proxies):
         response = client.get(url)
     return response.text
 
-# async def mainAsyncio(company_urls):
-def mainAsyncio(company_urls, proxies):
-    url = 'https://de.indeed.com/'
-    term = 'junior sales'
-    location = 'Berlin'
-
-    # get cookies and ua to by pass cloudflare
-    search_result_url, cookies, ua = job_result_url(proxies, url, term, location)
-    print(search_result_url, cookies, ua)
-
-    # send requests with saved cookies and ua
-    html = fetch(company_urls[0], ua=ua, cookies_list=cookies, proxies=proxies)
-    result = company_parser(html, proxies[0])
-    to_csv(result)
-
-
-    # responses = await asyncio.gather(*map(fetch, company_urls))
-    # htmls = [response.text for response in responses]
-    # return htmls
 
 if __name__ == '__main__':
     start = time.perf_counter()
     main()
-    # mainAsyncio(company_urls=company_urls, proxies=proxies)
     print(f'Processing Time: {time.perf_counter() - start} second(s)')
