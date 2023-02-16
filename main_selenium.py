@@ -103,8 +103,8 @@ def get_company_url(url, proxies):
         driver = webdriver_setup(proxy)
         driver.get(next_url)
         driver.maximize_window()
-        driver.set_page_load_timeout(20)
-        wait = WebDriverWait(driver, 15)
+        driver.set_page_load_timeout(95)
+        wait = WebDriverWait(driver, 90)
 
         # try:
         #     # Accept all cookies
@@ -117,12 +117,15 @@ def get_company_url(url, proxies):
 
         try:
             # next_url = driver.find_element(By.CSS_SELECTOR,'a[data-testid="pagination-page-next"]').get_attribute('href')
-            wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated>ul.jobsearch-ResultsList.css-0>li>div>div.slider_container.css-g7s71f.eu4oa1w0')))
-            next_url = driver.find_element(By.CSS_SELECTOR,'a[data-testid="pagination-page-next"]').get_attribute('href')
-        except NoSuchElementException:
+            next_url = wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'a[data-testid="pagination-page-next"]'))).get_attribute('href')
+        except (NoSuchElementException, TimeoutException) as e:
+            print(e)
             notendpage = False
 
-        clicking_objects = driver.find_elements(By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated>ul.jobsearch-ResultsList.css-0>li>div>div.slider_container.css-g7s71f.eu4oa1w0')
+        clicking_objects = wait.until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated>ul.jobsearch-ResultsList.css-0>li>div>div.slider_container.css-g7s71f.eu4oa1w0')))
+
+        # clicking_objects = driver.find_elements(By.CSS_SELECTOR, 'div.mosaic-provider-jobcards.mosaic.mosaic-provider-jobcards.mosaic-provider-hydrated>ul.jobsearch-ResultsList.css-0>li>div>div.slider_container.css-g7s71f.eu4oa1w0')
+
         for object in clicking_objects:
             # Scroll until element found
             js_code = "arguments[0].scrollIntoView();"
